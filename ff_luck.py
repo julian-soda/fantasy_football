@@ -38,7 +38,6 @@ for team in stats:
         results[record] += 1
 
     total = float(sum(results.values()))
-    #for r in sorted(results,key=lambda x: int(x.split('-')[0])):
-    for r in sorted(results):
+    for r in sorted(results,key=lambda x: int(x.split('-')[0])):
         print(f"{team:40} : {r:6} - {results[r]:6} - {float(results[r]) / total * 100.0:.2f}%")
     print()
