@@ -4,7 +4,7 @@ import sys
 import itertools
 from collections import defaultdict
 
-#                  week      1       2       3       4       5       6       7       8       9      10      11
+#                  week      1       2       3       4       5       6       7       8       9      10     11       12
 stats = { 'reason will prevail': {
               'scores': [ 100.00, 124.46, 91.50,  110.34, 80.68,  112.08, 83.76,  141.62, 144.64, 145.58, 94.70,  100.06,  ],
               'record': '6-6-0',
@@ -48,8 +48,10 @@ stats = { 'reason will prevail': {
         }
 
 weeks = max([ len(x['scores']) for x in stats.values() ])
+max_team_len = max([ len(x) for x in stats.keys() ]) + 5
 
 team_count = len(stats.keys())
+luck_index = {}
 
 for team in stats:
     results = defaultdict(lambda: 0)
@@ -69,7 +71,27 @@ for team in stats:
         results[record] += 1
 
     total = float(sum(results.values()))
+    (above,below) = (0.0,0.0)
     for r in sorted(results,key=lambda x: int(x.split('-')[0])):
         star = '*' if r == stats[team]['record'] else ' '
-        print(f"{team:40} {star}: {r:6} - {results[r]:6} - {float(results[r]) / total * 100.0:.2f}%")
+        print(f"{team:{max_team_len}} {star}: {r:6} - {results[r]:6} - {float(results[r]) / total * 100.0:.2f}%")
+        if int(r.split('-')[0]) < int(stats[team]['record'].split('-')[0]):
+            above += float(results[r]) / total * 100.0
+        elif int(r.split('-')[0]) > int(stats[team]['record'].split('-')[0]):
+            below += float(results[r]) / total * 100.0
+    distance = abs(above - below)
+    luck_index[team] = above - below
+    direction = 'bad' if below > above else 'good'
+    adjective = {0: "average",
+                 1: f"pretty {direction}",
+                 2: f"very {direction}",
+                 3: f"extremely {direction}"}.get(int(distance) // 25)
+    print(f"  {team} - with a record of {stats[team]['record']},")
+    print(f"    {above:.2f}% of all schedule combinations had the team with a worse record, and")
+    print(f"    {below:.2f}% of all schedule combinations had the team with a better record")
+    print(f"  {adjective} luck")
     print()
+
+print("Luck index (most to least)")
+for place,team in enumerate(sorted(luck_index.items(),key=lambda x: x[1], reverse=True),start=1):
+    print(f"{place:2}   {team[0]:{max_team_len}} {team[1]:.2f}")
