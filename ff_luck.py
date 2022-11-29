@@ -33,7 +33,6 @@ for team in stats:
                 losses += 1
             else:
                 ties += 1
-        #record = "%d-%d-%d" % ( wins, losses, ties )
         record = f"{wins}-{losses}-{ties}"
         results[record] += 1
 
