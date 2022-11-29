@@ -24,11 +24,11 @@ in your win/loss record.  Positive scores indicate good luck, and negative score
 bad luck.  Scores near 0 indicate very little luck, and scores near 100/-100 indicate extreme
 amounts of luck. The score is based on the following formula:
 
-\begin{equation}
-sum of % of all schedule combinations where a team would have a worse record than actual
- - 
-sum of % of all schedule combinations where a team would have a better record than actual
-\end{equation}
+>
+> sum of % of all schedule combinations where a team would have a worse record than actual
+> - 
+> sum of % of all schedule combinations where a team would have a better record than actual
+>
 
 For example, if 1.40% of all schedule combinations had the team with a worse record, and
 92.47% of all schedule combinations had the team with a better record, that team would have
