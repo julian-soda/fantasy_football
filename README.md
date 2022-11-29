@@ -8,8 +8,8 @@ that still counts as a loss, and you're still a loser.
 This script aims to measure the impact of schedule order and determine the degree to which
 your win/loss record can be attributed to luck. It does so by generating every possible
 schedule order for each team, determines the count of win/loss totals based on the team's
-and opponent's scores for each week, and compares the overall results to the teams' actual
-records.
+and possible opponent's scores for each week, and compares the overall results to the teams' 
+actual records.
 
 Assumptions:
 - applicable only to regular season - not playoffs
