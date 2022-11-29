@@ -32,4 +32,4 @@ sum of % of all schedule combinations where a team would have a better record th
 
 For example, if 1.40% of all schedule combinations had the team with a worse record, and
 92.47% of all schedule combinations had the team with a better record, that team would have
-extremely bad schedule luck, and would have a Luck Index score of -91.07.
+extremely bad schedule luck and would have a Luck Index score of -91.07.
