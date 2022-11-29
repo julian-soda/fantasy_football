@@ -23,10 +23,12 @@ team_count = len(stats.keys())
 
 for team in stats:
     results = defaultdict(lambda: 0)
+    # the number of permutations we need is the minimum of the # of weeks so far and the number of opponents
+    # in yahooo and espn, the schedule just repeats (in a 10 team league, you play the same team weeks 1 and 10
     for i in itertools.permutations( [ a for a in stats.keys() if a != team ], min(weeks,team_count-1) ):
         (wins, losses, ties) = (0,0,0)
         for week in range(weeks):
-            opponent = i[week % (team_count - 1)]
+            opponent = i[week % (team_count - 1)]      # mod to implement schedule repeat
             if stats[team][week] > stats[opponent][week]:
                 wins += 1
             elif stats[team][week] < stats[opponent][week]:
