@@ -87,7 +87,7 @@ for team in stats:
                  2: f"very {direction}",
                  3: f"extremely {direction}"}.get(int(distance) // 25)
     print(f"  {team} - with a record of {stats[team]['record']},")
-    print(f"    {above:.2f}% of all schedule combinations had the team with a worse record, and")
+    print(f"    {above:.2f}% of all schedule combinations had the team with a worse record")
     print(f"    {below:.2f}% of all schedule combinations had the team with a better record")
     print(f"  {adjective} luck")
     print()
