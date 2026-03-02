@@ -10,8 +10,10 @@ $(VENV):
 test: $(VENV)
 	$(PYTEST) test_ff_luck.py -v
 
+THROUGH_WEEK_ARG = $(if $(THROUGH_WEEK),--through-week $(THROUGH_WEEK),)
+
 run: $(VENV)
-	$(PYTHON) ff_luck.py --league-id $(LEAGUE_ID) --year $(YEAR)
+	$(PYTHON) ff_luck.py --league-id $(LEAGUE_ID) --year $(YEAR) $(THROUGH_WEEK_ARG)
 
 clean:
 	rm -rf $(VENV) .pytest_cache __pycache__

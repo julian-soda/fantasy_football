@@ -102,6 +102,12 @@ Example:
 make run LEAGUE_ID=123456 YEAR=2024
 ```
 
+To analyze only through a specific week (useful mid-season):
+
+```
+make run LEAGUE_ID=123456 YEAR=2024 THROUGH_WEEK=8
+```
+
 **First run:** A browser window will open asking you to authorize the app with your Yahoo account.
 Click **Allow**, then paste the verification code back into the terminal when prompted.
 Your tokens will be saved to `.env` automatically — subsequent runs will not require browser authorization.

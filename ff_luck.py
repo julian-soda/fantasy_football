@@ -46,9 +46,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Compute fantasy football luck index from Yahoo league data.')
     parser.add_argument('--league-id', required=True, help='Yahoo league ID')
     parser.add_argument('--year', type=int, required=True, help='Season year (e.g. 2024)')
+    parser.add_argument('--through-week', type=int, default=None, help='Only include data through this week number')
     args = parser.parse_args()
 
-    stats = fetch_stats(args.league_id, args.year)
+    stats = fetch_stats(args.league_id, args.year, through_week=args.through_week)
 
     weeks = max(len(x['scores']) for x in stats.values())
     max_team_len = max(len(x) for x in stats.keys()) + 5

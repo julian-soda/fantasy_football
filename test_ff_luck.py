@@ -137,10 +137,15 @@ class TestComputeLuck:
 # Small synthetic integration tests
 # ---------------------------------------------------------------------------
 
-def _run_simulation(team, all_stats):
-    """Run the full permutation simulation for one team, return results dict."""
+def _run_simulation(team, all_stats, through_week=None):
+    """Run the full permutation simulation for one team, return results dict.
+
+    If through_week is specified, only the first through_week weeks are used.
+    """
     num_teams = len(all_stats)
     num_weeks = max(len(v['scores']) for v in all_stats.values())
+    if through_week is not None:
+        num_weeks = min(num_weeks, through_week)
     cycle_length = num_teams - 1
     opp_scores = {name: data['scores'] for name, data in all_stats.items()}
     opponents = [a for a in all_stats if a != team]
@@ -210,6 +215,47 @@ class TestIntegration:
         assert simulate_season([100, 100], opp_scores, ('beta', 'gamma'), 2, 2) == (1, 1, 0)
         # perm (gamma, beta): week 0 vs gamma loss, week 1 vs beta win -> 1-1-0
         assert simulate_season([100, 100], opp_scores, ('gamma', 'beta'), 2, 2) == (1, 1, 0)
+
+
+# ---------------------------------------------------------------------------
+# through_week tests
+# ---------------------------------------------------------------------------
+
+class TestThroughWeek:
+    def test_fewer_weeks_changes_results(self):
+        """Limiting to fewer weeks should produce different luck results than the full season."""
+        team = 'fillitupmoon'
+        full    = _run_simulation(team, stats)
+        partial = _run_simulation(team, stats, through_week=3)
+        pct_worse_full,    pct_better_full    = compute_luck(full,    stats[team]['record'])
+        pct_worse_partial, pct_better_partial = compute_luck(partial, stats[team]['record'])
+        assert (pct_worse_full - pct_better_full) != (pct_worse_partial - pct_better_partial)
+
+    def test_through_week_limits_score_count(self):
+        """Simulation with through_week=N should use exactly N weeks of scores."""
+        team = 'reason will prevail'
+        n = 3
+        results = _run_simulation(team, stats, through_week=n)
+        # With n weeks, max possible wins is n
+        for record in results:
+            w, l, t = (int(x) for x in record.split('-'))
+            assert w + l + t == n
+
+    def test_through_week_full_season_matches_no_limit(self):
+        """Passing through_week equal to the season length should match the unlimited run."""
+        team = 'plate gate'
+        full_weeks = len(stats[team]['scores'])
+        results_unlimited = _run_simulation(team, stats)
+        results_explicit  = _run_simulation(team, stats, through_week=full_weeks)
+        assert dict(results_unlimited) == dict(results_explicit)
+
+    def test_through_week_one(self):
+        """With only 1 week, every team either wins or loses (no ties in this dataset)."""
+        team = 'flash them tds'
+        results = _run_simulation(team, stats, through_week=1)
+        for record in results:
+            w, l, t = (int(x) for x in record.split('-'))
+            assert w + l + t == 1
 
 
 # ---------------------------------------------------------------------------
