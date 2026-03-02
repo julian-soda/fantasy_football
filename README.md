@@ -34,7 +34,9 @@ For example, if 1.40% of all schedule combinations had the team with a worse rec
 92.47% of all schedule combinations had the team with a better record, that team would have
 extremely bad schedule luck and would have a Luck Index score of -91.07.
 
-## Setup
+---
+
+## CLI Usage
 
 ### Prerequisites
 
@@ -90,7 +92,7 @@ python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
 
-## Usage
+### 5. Run
 
 ```
 make run LEAGUE_ID=<your_league_id> YEAR=<season_year>
@@ -118,7 +120,7 @@ make run LEAGUE_ID=123456 YEAR=2024 DEBUG=1
 Click **Allow**, then paste the verification code back into the terminal when prompted.
 Your tokens will be saved to `.env` automatically — subsequent runs will not require browser authorization.
 
-## Development
+### Development
 
 Run the test suite:
 
@@ -131,3 +133,190 @@ Remove the virtual environment and caches:
 ```
 make clean
 ```
+
+---
+
+## Webapp Deployment
+
+The webapp consists of:
+- **Backend** — FastAPI on AWS App Runner (streams results via SSE)
+- **Frontend** — React + Vite on Vercel
+- **Storage** — DynamoDB (sessions + results)
+
+All deploy commands use `Makefile.deploy` and must be run from the `fantasy_football/` directory.
+
+### Prerequisites
+
+- AWS CLI v2 (`aws --version` should show `aws-cli/2.x`)
+- Docker
+- Node.js 20+
+- Vercel CLI (`npm install -g vercel`)
+- AWS credentials configured (`aws sts get-caller-identity` should succeed)
+
+### Step 1 — Yahoo Developer App
+
+Create a Yahoo app at [developer.yahoo.com/apps](https://developer.yahoo.com/apps/):
+
+1. Application type: **Web Application**
+2. API Permissions: **Fantasy Sports (Read)**
+3. Redirect URI: `https://<your-app-runner-url>/auth/callback`
+   (You can use a placeholder for now and update it after App Runner is deployed.)
+
+Note your **Client ID** and **Client Secret** — you'll need them as environment variables.
+
+### Step 2 — One-time AWS infrastructure
+
+Creates the DynamoDB tables, ECR repository, and IAM role App Runner needs to pull images:
+
+```
+make -f Makefile.deploy infra
+```
+
+This is safe to run once and idempotent per resource (AWS will error on duplicates, which can be ignored).
+
+### Step 3 — Build and push the Docker image
+
+```
+make -f Makefile.deploy docker-build
+make -f Makefile.deploy docker-push
+```
+
+The build context is the `fantasy_football/` directory. The image includes `ff_luck.py` and
+`yahoo_api.py` alongside the backend source.
+
+### Step 4 — Create the App Runner service
+
+```
+make -f Makefile.deploy apprunner-create
+```
+
+After the command completes, from the JSON output:
+
+1. Copy the `ServiceArn` — you'll need it for future redeploys and GitHub Actions.
+2. Copy the `ServiceUrl` — this is your backend's public HTTPS hostname.
+3. **In the App Runner console**, open the service → Configuration → Service settings →
+   set **Request timeout** to **600 seconds**. This is required for SSE streams to complete.
+
+Update the Yahoo app's redirect URI to:
+```
+https://<ServiceUrl>/auth/callback
+```
+
+### Step 5 — Configure App Runner environment variables
+
+In the App Runner console, add these environment variables to the service:
+
+| Variable | Value |
+|---|---|
+| `YAHOO_CONSUMER_KEY` | From your Yahoo app |
+| `YAHOO_CONSUMER_SECRET` | From your Yahoo app |
+| `YAHOO_REDIRECT_URI` | `https://<ServiceUrl>/auth/callback` |
+| `AWS_DEFAULT_REGION` | `us-east-1` |
+
+The App Runner task role also needs DynamoDB permissions. Attach an inline policy to the
+service's instance role (created automatically by App Runner) with:
+
+```json
+{
+  "Effect": "Allow",
+  "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"],
+  "Resource": [
+    "arn:aws:dynamodb:us-east-1:*:table/ff-sessions",
+    "arn:aws:dynamodb:us-east-1:*:table/ff-results"
+  ]
+}
+```
+
+### Step 6 — Deploy the frontend
+
+Update `frontend/vercel.json` — replace `REPLACE_WITH_APP_RUNNER_URL` with your App Runner
+`ServiceUrl` (no `https://` prefix, just the hostname):
+
+```json
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://<ServiceUrl>/api/:path*" },
+    { "source": "/auth/:path*", "destination": "https://<ServiceUrl>/auth/:path*" },
+    { "source": "/((?!api|auth).*)", "destination": "/index.html" }
+  ]
+}
+```
+
+Then deploy:
+
+```
+make -f Makefile.deploy frontend-deploy
+```
+
+Follow the Vercel CLI prompts on first run to link the project to your Vercel account.
+Vercel provides HTTPS automatically — no certificate setup needed.
+
+---
+
+## GitHub Actions (CI/CD)
+
+Subsequent deploys on push to `master` are handled by `.github/workflows/`.
+
+### Required GitHub secrets
+
+Go to the repository → Settings → Secrets and variables → Actions, and add:
+
+| Secret | How to get it |
+|---|---|
+| `AWS_DEPLOY_ROLE_ARN` | ARN of an IAM role with OIDC trust for GitHub Actions (see below) |
+| `APP_RUNNER_SERVICE_ARN` | From the `apprunner-create` output in Step 4 |
+| `VERCEL_TOKEN` | vercel.com → Account Settings → Tokens |
+| `VERCEL_ORG_ID` | Run `vercel whoami --token <token>` or check Vercel project settings |
+| `VERCEL_PROJECT_ID` | Vercel project settings → General |
+
+### Setting up the AWS deploy role (OIDC)
+
+GitHub Actions authenticates to AWS via OIDC — no long-lived access keys needed.
+
+**1. Add GitHub as an OIDC provider in IAM** (one-time per AWS account):
+
+```
+aws iam create-open-id-connect-provider \
+  --url https://token.actions.githubusercontent.com \
+  --client-id-list sts.amazonaws.com \
+  --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1
+```
+
+**2. Create the deploy role:**
+
+```
+aws iam create-role \
+  --role-name GitHubActionsDeployRole \
+  --assume-role-policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Principal": {"Federated": "arn:aws:iam::<account>:oidc-provider/token.actions.githubusercontent.com"},
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringLike": {"token.actions.githubusercontent.com:sub": "repo:<your-github-org>/<your-repo>:*"}
+      }
+    }]
+  }'
+```
+
+**3. Attach the required permissions:**
+
+```
+aws iam attach-role-policy \
+  --role-name GitHubActionsDeployRole \
+  --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser
+
+aws iam attach-role-policy \
+  --role-name GitHubActionsDeployRole \
+  --policy-arn arn:aws:iam::aws:policy/AWSAppRunnerFullAccess
+```
+
+Set `AWS_DEPLOY_ROLE_ARN` to `arn:aws:iam::<account>:role/GitHubActionsDeployRole`.
+
+### What triggers a deploy
+
+| Push touches | Workflow triggered |
+|---|---|
+| `backend/`, `ff_luck.py`, or `yahoo_api.py` | `deploy-backend.yml` — rebuilds Docker image, pushes to ECR, triggers App Runner redeploy |
+| `frontend/` | `deploy-frontend.yml` — runs `npm ci && npm run build`, deploys to Vercel |
