@@ -5,7 +5,7 @@ PYTEST = $(VENV)/bin/pytest
 
 $(VENV):
 	python3 -m venv $(VENV)
-	$(PIP) install pytest
+	$(PIP) install -r requirements.txt
 
 test: $(VENV)
 	$(PYTEST) test_ff_luck.py -v
