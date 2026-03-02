@@ -45,21 +45,40 @@ def fetch_stats(league_id: str, year: int, env_file: str = '.env', through_week:
         name = t.name.decode('utf-8') if isinstance(t.name, bytes) else t.name
         return name.encode('ascii', errors='ignore').decode('ascii')
 
-    # Initialise per-team accumulators
+    # Initialise per-team accumulators keyed by team_id for reliable lookup
     teams = query.get_league_teams()
+    league_key = query.get_league_key()
+    team_id_to_name = {team.team_id: team_name(team) for team in teams}
     stats = {
-        team_name(team): {'scores': [], 'wins': 0, 'losses': 0, 'ties': 0}
+        team_name(team): {'scores_by_week': {}, 'wins': 0, 'losses': 0, 'ties': 0}
         for team in teams
     }
 
-    # Fetch each regular season week
-    for week in range(1, num_regular_season_weeks + 1):
-        scoreboard = query.get_league_scoreboard_by_week(week)
-        for matchup in scoreboard.matchups:
+    # Fetch matchups via the team endpoint, which works for both current and
+    # archived seasons (unlike get_league_scoreboard_by_week, which fails for
+    # completed seasons). Each team's matchup list covers their full season;
+    # we filter to regular season weeks and deduplicate so each matchup is
+    # only processed once.
+    seen_matchups = set()  # (week, team_key_a, team_key_b) tuples
+    for team in teams:
+        name = team_name(team)
+        team_key = f"{league_key}.t.{team.team_id}"
+        for matchup in query.get_team_matchups(team.team_id):
+            week_num = int(matchup.week)
+            if int(matchup.is_playoffs) or week_num > num_regular_season_weeks:
+                continue
+            # Deduplicate: sort the two team keys so (A,B) and (B,A) map to the same key
+            keys = tuple(sorted(t.team_key for t in matchup.teams))
+            dedup_key = (week_num,) + keys
+            if dedup_key in seen_matchups:
+                continue
+            seen_matchups.add(dedup_key)
+
             team_a, team_b = matchup.teams[0], matchup.teams[1]
-            name_a, name_b = team_name(team_a), team_name(team_b)
-            stats[name_a]['scores'].append(team_a.points)
-            stats[name_b]['scores'].append(team_b.points)
+            name_a = team_id_to_name.get(team_a.team_id, team_name(team_a))
+            name_b = team_id_to_name.get(team_b.team_id, team_name(team_b))
+            stats[name_a]['scores_by_week'][week_num] = team_a.points
+            stats[name_b]['scores_by_week'][week_num] = team_b.points
             if team_a.points > team_b.points:
                 stats[name_a]['wins'] += 1
                 stats[name_b]['losses'] += 1
@@ -69,6 +88,14 @@ def fetch_stats(league_id: str, year: int, env_file: str = '.env', through_week:
             else:
                 stats[name_a]['ties'] += 1
                 stats[name_b]['ties'] += 1
+
+    # Convert scores_by_week dicts to week-ordered lists
+    for name in stats:
+        stats[name]['scores'] = [
+            stats[name]['scores_by_week'][w]
+            for w in sorted(stats[name]['scores_by_week'])
+        ]
+        del stats[name]['scores_by_week']
 
     # Collapse counters into a record string and clean up
     for team in stats:
