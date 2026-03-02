@@ -1,6 +1,7 @@
 #!/bin/env python3
 
 import itertools
+import math
 from collections import defaultdict
 
 
@@ -47,9 +48,10 @@ if __name__ == '__main__':
     parser.add_argument('--league-id', required=True, help='Yahoo league ID')
     parser.add_argument('--year', type=int, required=True, help='Season year (e.g. 2024)')
     parser.add_argument('--through-week', type=int, default=None, help='Only include data through this week number')
+    parser.add_argument('--debug', action='store_true', help='Print progress during fetch and simulation')
     args = parser.parse_args()
 
-    stats = fetch_stats(args.league_id, args.year, through_week=args.through_week)
+    stats = fetch_stats(args.league_id, args.year, through_week=args.through_week, debug=args.debug)
 
     weeks = max(len(x['scores']) for x in stats.values())
     max_team_len = max(len(x) for x in stats.keys()) + 5
@@ -61,6 +63,10 @@ if __name__ == '__main__':
         results = defaultdict(int)
         # the number of permutations we need is the minimum of the # of weeks so far and the number of opponents
         # in yahoo and espn, the schedule just repeats (in a 10 team league, you play the same team weeks 1 and 10)
+        perm_len = min(weeks, team_count - 1)
+        perm_count = math.perm(team_count - 1, perm_len)
+        if args.debug:
+            print(f"Simulating {team} ({perm_count:,} permutations)...", flush=True)
         for i in itertools.permutations( [ a for a in stats.keys() if a != team ], min(weeks,team_count-1) ):
             wins, losses, ties = simulate_season(stats[team]['scores'], opponent_scores, i, weeks, team_count-1)
             results[f"{wins}-{losses}-{ties}"] += 1

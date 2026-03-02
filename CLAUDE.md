@@ -25,6 +25,10 @@ All 28 tests should pass without credentials.
 Copy `.env.template` → `.env` and fill in Yahoo API keys. `.env` is gitignored.
 The first `make run` will open a browser for OAuth; tokens are saved back to `.env`.
 
+## Development workflow
+When updating `ff_luck.py`, always check whether corresponding updates are needed
+in the Makefile, README, and tests. Ask if unsure whether something is appropriate.
+
 ## Conventions
 - `fetch_stats` returns `{ team_name: { 'scores': [...], 'record': 'W-L-T' } }`
 - Records are derived from matchup scores directly, not from Yahoo standings

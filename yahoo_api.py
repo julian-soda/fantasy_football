@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from yfpy.query import YahooFantasySportsQuery
 
 
-def fetch_stats(league_id: str, year: int, env_file: str = '.env', through_week: int = None) -> dict:
+def fetch_stats(league_id: str, year: int, env_file: str = '.env', through_week: int = None, debug: bool = False) -> dict:
     """Fetch team scores and records for the regular season from Yahoo Fantasy.
 
     Returns a stats dict in the same format used by ff_luck.py:
@@ -60,9 +60,13 @@ def fetch_stats(league_id: str, year: int, env_file: str = '.env', through_week:
     # we filter to regular season weeks and deduplicate so each matchup is
     # only processed once.
     seen_matchups = set()  # (week, team_key_a, team_key_b) tuples
+    if debug:
+        print(f"Fetching data for {len(teams)} teams, {num_regular_season_weeks} regular season weeks...")
     for team in teams:
         name = team_name(team)
         team_key = f"{league_key}.t.{team.team_id}"
+        if debug:
+            print(f"  Fetching matchups for {name}...", flush=True)
         for matchup in query.get_team_matchups(team.team_id):
             week_num = int(matchup.week)
             if int(matchup.is_playoffs) or week_num > num_regular_season_weeks:
