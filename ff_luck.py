@@ -40,6 +40,28 @@ def compute_luck(results, actual_record):
     return pct_worse, pct_better
 
 
+def simulate_all_teams(stats: dict, debug: bool = False):
+    """Simulate every possible schedule permutation for each team.
+    Yields (team_name, luck_index, pct_worse, pct_better) per team.
+    """
+    weeks = max(len(x['scores']) for x in stats.values())
+    team_count = len(stats)
+    opponent_scores = {name: data['scores'] for name, data in stats.items()}
+    perm_len = min(weeks, team_count - 1)
+    perm_count = math.perm(team_count - 1, perm_len)
+
+    for team in stats:
+        results = defaultdict(int)
+        if debug:
+            print(f"Simulating {team} ({perm_count:,} permutations)...", flush=True)
+        for i in itertools.permutations([a for a in stats.keys() if a != team], perm_len):
+            wins, losses, ties = simulate_season(stats[team]['scores'], opponent_scores, i, weeks, team_count - 1)
+            results[f"{wins}-{losses}-{ties}"] += 1
+
+        pct_worse, pct_better = compute_luck(results, stats[team]['record'])
+        yield team, pct_worse - pct_better, pct_worse, pct_better
+
+
 if __name__ == '__main__':
     import argparse
     from yahoo_api import fetch_stats
@@ -53,32 +75,12 @@ if __name__ == '__main__':
 
     stats = fetch_stats(args.league_id, args.year, through_week=args.through_week, debug=args.debug)
 
-    weeks = max(len(x['scores']) for x in stats.values())
     max_team_len = max(len(x) for x in stats.keys()) + 5
-    team_count = len(stats)
     luck_index = {}
-    opponent_scores = {name: data['scores'] for name, data in stats.items()}
 
-    for team in stats:
-        results = defaultdict(int)
-        # the number of permutations we need is the minimum of the # of weeks so far and the number of opponents
-        # in yahoo and espn, the schedule just repeats (in a 10 team league, you play the same team weeks 1 and 10)
-        perm_len = min(weeks, team_count - 1)
-        perm_count = math.perm(team_count - 1, perm_len)
-        if args.debug:
-            print(f"Simulating {team} ({perm_count:,} permutations)...", flush=True)
-        for i in itertools.permutations( [ a for a in stats.keys() if a != team ], min(weeks,team_count-1) ):
-            wins, losses, ties = simulate_season(stats[team]['scores'], opponent_scores, i, weeks, team_count-1)
-            results[f"{wins}-{losses}-{ties}"] += 1
-
-        total = float(sum(results.values()))
-        for r in sorted(results, key=lambda x: int(x.split('-')[0])):
-            star = '*' if r == stats[team]['record'] else ' '
-            print(f"{team:{max_team_len}} {star}: {r:6} - {results[r]:6} - {float(results[r]) / total * 100.0:.2f}%")
-
-        pct_worse, pct_better = compute_luck(results, stats[team]['record'])
+    for team, li, pct_worse, pct_better in simulate_all_teams(stats, debug=args.debug):
+        luck_index[team] = li
         distance = abs(pct_worse - pct_better)
-        luck_index[team] = pct_worse - pct_better
         direction = 'bad' if pct_better > pct_worse else 'good'
         adjective = {0: "average",
                      1: f"pretty {direction}",

@@ -1,9 +1,11 @@
+import os
 from pathlib import Path
 from dotenv import load_dotenv
 from yfpy.query import YahooFantasySportsQuery
 
 
-def fetch_stats(league_id: str, year: int, env_file: str = '.env', through_week: int = None, debug: bool = False) -> dict:
+def fetch_stats(league_id: str, year: int, env_file: str = '.env', access_token_json: dict = None,
+                through_week: int = None, debug: bool = False) -> dict:
     """Fetch team scores and records for the regular season from Yahoo Fantasy.
 
     Returns a stats dict in the same format used by ff_luck.py:
@@ -11,19 +13,43 @@ def fetch_stats(league_id: str, year: int, env_file: str = '.env', through_week:
 
     Records and scores cover the regular season only (playoff weeks excluded).
     If through_week is specified, only weeks 1 through through_week are included.
+
+    If access_token_json is provided (a dict with OAuth2 token fields), it is used
+    directly for authentication instead of reading from env_file. This is the webapp
+    code path; the CLI path (using env_file) is unchanged.
     """
-    env_path = Path(env_file)
-    load_dotenv(env_path)
-    env_dir = env_path.parent  # yfpy expects the directory containing .env, not the file itself
+    if access_token_json is not None:
+        token_dict = {
+            'consumer_key': os.environ['YAHOO_CONSUMER_KEY'],
+            'consumer_secret': os.environ['YAHOO_CONSUMER_SECRET'],
+            'access_token': access_token_json['access_token'],
+            'refresh_token': access_token_json['refresh_token'],
+            'guid': access_token_json.get('xoauth_yahoo_guid') or access_token_json.get('guid', ''),
+            'token_time': access_token_json['token_time'],
+            'token_type': access_token_json.get('token_type', 'bearer'),
+        }
+        return _do_fetch(league_id, year, token_json=token_dict,
+                         through_week=through_week, debug=debug, save_token=False)
+    else:
+        env_path = Path(env_file)
+        load_dotenv(env_path)
+        env_dir = env_path.parent
+        return _do_fetch(league_id, year, env_dir=env_dir,
+                         through_week=through_week, debug=debug, save_token=True)
+
+
+def _do_fetch(league_id, year, env_dir=None, token_json=None,
+              through_week=None, debug=False, save_token=True):
+    """Core fetch implementation. Either env_dir or token_json must be provided."""
+    save = save_token and env_dir is not None
 
     # First query (no game_id) is used only to resolve the year → game_id.
-    # This works because get_game_key_by_season queries Yahoo's games endpoint,
-    # which doesn't require a specific league/season context.
     resolver = YahooFantasySportsQuery(
         league_id=league_id,
         game_code='nfl',
         env_file_location=env_dir,
-        save_token_data_to_env_file=True,
+        yahoo_access_token_json=token_json,
+        save_token_data_to_env_file=save,
     )
     game_id = int(resolver.get_game_key_by_season(year))
 
@@ -32,7 +58,8 @@ def fetch_stats(league_id: str, year: int, env_file: str = '.env', through_week:
         game_code='nfl',
         game_id=game_id,
         env_file_location=env_dir,
-        save_token_data_to_env_file=True,
+        yahoo_access_token_json=token_json,
+        save_token_data_to_env_file=save,
     )
 
     # Determine how many regular season weeks to fetch
