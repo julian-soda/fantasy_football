@@ -11,7 +11,7 @@ test: $(VENV)
 	$(PYTEST) test_ff_luck.py -v
 
 run: $(VENV)
-	$(PYTHON) ff_luck.py
+	$(PYTHON) ff_luck.py --league-id $(LEAGUE_ID) --year $(YEAR)
 
 clean:
 	rm -rf $(VENV) .pytest_cache __pycache__
