@@ -166,13 +166,15 @@ Note your **Client ID** and **Client Secret** — you'll need them as environmen
 
 ### Step 2 — One-time AWS infrastructure
 
-Creates the DynamoDB tables, ECR repository, and IAM role App Runner needs to pull images:
+Creates the DynamoDB tables, ECR repository, and two IAM roles:
+- `AppRunnerECRAccessRole` — used by App Runner to pull the Docker image from ECR
+- `AppRunnerInstanceRole` — assumed by the running container to read/write DynamoDB
 
 ```
 make -f Makefile.deploy infra
 ```
 
-This is safe to run once and idempotent per resource (AWS will error on duplicates, which can be ignored).
+This is safe to run once per resource (AWS will error on duplicates, which can be ignored).
 
 ### Step 3 — Build and push the Docker image
 
@@ -213,19 +215,8 @@ In the App Runner console, add these environment variables to the service:
 | `YAHOO_REDIRECT_URI` | `https://<ServiceUrl>/auth/callback` |
 | `AWS_DEFAULT_REGION` | `us-east-1` |
 
-The App Runner task role also needs DynamoDB permissions. Attach an inline policy to the
-service's instance role (created automatically by App Runner) with:
-
-```json
-{
-  "Effect": "Allow",
-  "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"],
-  "Resource": [
-    "arn:aws:dynamodb:us-east-1:*:table/ff-sessions",
-    "arn:aws:dynamodb:us-east-1:*:table/ff-results"
-  ]
-}
-```
+The `AppRunnerInstanceRole` created in Step 2 already has the required DynamoDB permissions —
+no additional policy configuration needed.
 
 ### Step 6 — Deploy the frontend
 
