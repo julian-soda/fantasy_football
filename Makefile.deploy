@@ -79,6 +79,15 @@ apprunner-create: docker-push
 	  --instance-configuration '{"Cpu":"1 vCPU","Memory":"2 GB","InstanceRoleArn":"$(INSTANCE_ROLE_ARN)"}' \
 	  --health-check-configuration 'Protocol=HTTP,Path=/health,Interval=20,Timeout=5'
 
+# Attach the instance role to an existing service (run once if service was created without it).
+# Triggers an automatic redeployment.
+apprunner-set-instance-role:
+	@test -n "$(APP_RUNNER_SERVICE_ARN)" || (echo "Error: APP_RUNNER_SERVICE_ARN is not set" && exit 1)
+	aws apprunner update-service \
+	  --region $(AWS_REGION) \
+	  --service-arn $(APP_RUNNER_SERVICE_ARN) \
+	  --instance-configuration '{"InstanceRoleArn":"$(INSTANCE_ROLE_ARN)"}'
+
 # Trigger a redeployment of an existing App Runner service.
 # Requires APP_RUNNER_SERVICE_ARN to be set.
 apprunner-deploy:
@@ -101,5 +110,5 @@ frontend-deploy: frontend-install
 
 .PHONY: dynamodb-tables ecr-repo apprunner-ecr-role apprunner-instance-role infra \
         ecr-login docker-build docker-push \
-        apprunner-create apprunner-deploy deploy-backend \
+        apprunner-create apprunner-set-instance-role apprunner-deploy deploy-backend \
         frontend-install frontend-deploy
