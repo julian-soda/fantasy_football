@@ -39,6 +39,7 @@ def save_result(league_id: str, year: int, through_week: int | None, team_events
             "pct_better": e["pct_better"],
             "record": e["record"],
             "scores": e["scores"],
+            "distribution": e.get("distribution"),
         }
         for e in team_events
     }

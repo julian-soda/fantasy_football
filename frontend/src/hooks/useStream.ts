@@ -9,6 +9,7 @@ export interface StreamEvent {
   pct_better?: number
   record?: string
   scores?: number[]
+  distribution?: Record<string, number>
   // complete
   result_id?: string
   // error

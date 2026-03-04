@@ -2,11 +2,11 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://REPLACE_WITH_APP_RUNNER_URL/api/:path*"
+      "destination": "https://mfsarzpx7y.us-east-1.awsapprunner.com/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://REPLACE_WITH_APP_RUNNER_URL/auth/:path*"
+      "destination": "https://mfsarzpx7y.us-east-1.awsapprunner.com/auth/:path*"
     },
     {
       "source": "/((?!api|auth).*)",

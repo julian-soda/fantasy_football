@@ -59,7 +59,9 @@ def simulate_all_teams(stats: dict, debug: bool = False):
             results[f"{wins}-{losses}-{ties}"] += 1
 
         pct_worse, pct_better = compute_luck(results, stats[team]['record'])
-        yield team, pct_worse - pct_better, pct_worse, pct_better
+        total = float(sum(results.values()))
+        distribution = {r: round(count / total * 100, 2) for r, count in results.items()}
+        yield team, pct_worse - pct_better, pct_worse, pct_better, distribution
 
 
 if __name__ == '__main__':
@@ -78,7 +80,7 @@ if __name__ == '__main__':
     max_team_len = max(len(x) for x in stats.keys()) + 5
     luck_index = {}
 
-    for team, li, pct_worse, pct_better in simulate_all_teams(stats, debug=args.debug):
+    for team, li, pct_worse, pct_better, _ in simulate_all_teams(stats, debug=args.debug):
         luck_index[team] = li
         distance = abs(pct_worse - pct_better)
         direction = 'bad' if pct_better > pct_worse else 'good'

@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import DistributionChart from './DistributionChart'
+import WeeklyScoresChart from './WeeklyScoresChart'
 
 export interface TeamResult {
   luck_index: number
@@ -6,10 +8,12 @@ export interface TeamResult {
   pct_better: number
   record: string
   scores?: number[]
+  distribution?: Record<string, number>
 }
 
 interface Props {
   teams: Record<string, TeamResult>
+  leagueAvg?: number[]
 }
 
 type SortKey = 'luck_index' | 'pct_worse' | 'pct_better' | 'team'
@@ -37,9 +41,30 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: 'right' as const,
     fontVariantNumeric: 'tabular-nums',
   },
+  expandRow: {
+    background: '#f8f7ff',
+    borderBottom: '2px solid #e0d8ff',
+  },
+  expandCell: {
+    padding: '1rem 1.2rem',
+    borderBottom: '2px solid #e0d8ff',
+  },
+  expandGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '1.5rem',
+  },
+  expandLabel: {
+    fontSize: '0.82rem',
+    fontWeight: 600,
+    color: '#6001d2',
+    marginBottom: '0.4rem',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.04em',
+  },
 }
 
-function luckColor(index: number) {
+export function luckColor(index: number) {
   if (index > 30) return '#1a7f37'
   if (index > 0) return '#4caf50'
   if (index > -30) return '#f57c00'
@@ -56,9 +81,10 @@ function luckLabel(index: number) {
   return `Extremely ${dir}`
 }
 
-export default function LuckTable({ teams }: Props) {
+export default function LuckTable({ teams, leagueAvg = [] }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('luck_index')
   const [sortAsc, setSortAsc] = useState(false)
+  const [expandedTeam, setExpandedTeam] = useState<string | null>(null)
 
   function handleSort(key: SortKey) {
     if (key === sortKey) {
@@ -80,6 +106,8 @@ export default function LuckTable({ teams }: Props) {
     if (key !== sortKey) return ' ↕'
     return sortAsc ? ' ↑' : ' ↓'
   }
+
+  const colCount = 7
 
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -104,28 +132,69 @@ export default function LuckTable({ teams }: Props) {
           </tr>
         </thead>
         <tbody>
-          {rows.map(([name, data], i) => (
-            <tr key={name}>
-              <td style={styles.td}>{i + 1}</td>
-              <td style={styles.td}>{name}</td>
-              <td style={{ ...styles.td, ...styles.number }}>{data.record}</td>
-              <td style={{
-                ...styles.td,
-                ...styles.number,
-                fontWeight: 700,
-                color: luckColor(data.luck_index),
-              }}>
-                {data.luck_index > 0 ? '+' : ''}{data.luck_index.toFixed(2)}
-              </td>
-              <td style={{ ...styles.td, ...styles.number }}>
-                {data.pct_worse.toFixed(1)}%
-              </td>
-              <td style={{ ...styles.td, ...styles.number }}>
-                {data.pct_better.toFixed(1)}%
-              </td>
-              <td style={styles.td}>{luckLabel(data.luck_index)}</td>
-            </tr>
-          ))}
+          {rows.map(([name, data], i) => {
+            const isExpanded = expandedTeam === name
+            const rowStyle: React.CSSProperties = {
+              cursor: 'pointer',
+              background: isExpanded ? '#f0ebff' : undefined,
+            }
+            return (
+              <>
+                <tr
+                  key={name}
+                  style={rowStyle}
+                  onClick={() => setExpandedTeam(isExpanded ? null : name)}
+                >
+                  <td style={styles.td}>{i + 1}</td>
+                  <td style={styles.td}>
+                    <span style={{ marginRight: '0.4rem', fontSize: '0.75rem', color: '#999' }}>
+                      {isExpanded ? '▾' : '▸'}
+                    </span>
+                    {name}
+                  </td>
+                  <td style={{ ...styles.td, ...styles.number }}>{data.record}</td>
+                  <td style={{
+                    ...styles.td,
+                    ...styles.number,
+                    fontWeight: 700,
+                    color: luckColor(data.luck_index),
+                  }}>
+                    {data.luck_index > 0 ? '+' : ''}{data.luck_index.toFixed(2)}
+                  </td>
+                  <td style={{ ...styles.td, ...styles.number }}>
+                    {data.pct_worse.toFixed(1)}%
+                  </td>
+                  <td style={{ ...styles.td, ...styles.number }}>
+                    {data.pct_better.toFixed(1)}%
+                  </td>
+                  <td style={styles.td}>{luckLabel(data.luck_index)}</td>
+                </tr>
+                {isExpanded && (
+                  <tr key={`${name}-expand`} style={styles.expandRow}>
+                    <td colSpan={colCount} style={styles.expandCell}>
+                      <div style={styles.expandGrid}>
+                        {data.distribution && (
+                          <div>
+                            <div style={styles.expandLabel}>Record Distribution</div>
+                            <DistributionChart
+                              distribution={data.distribution}
+                              actualRecord={data.record}
+                            />
+                          </div>
+                        )}
+                        {data.scores && data.scores.length > 0 && (
+                          <div style={data.distribution ? {} : { gridColumn: '1 / -1' }}>
+                            <div style={styles.expandLabel}>Weekly Scores vs League Average</div>
+                            <WeeklyScoresChart scores={data.scores} leagueAvg={leagueAvg} />
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </>
+            )
+          })}
         </tbody>
       </table>
     </div>

@@ -51,7 +51,7 @@ async def calculate(
                 access_token_json=tokens,
                 through_week=through_week,
             )
-            for team, luck_index, pct_worse, pct_better in simulate_all_teams(stats):
+            for team, luck_index, pct_worse, pct_better, distribution in simulate_all_teams(stats):
                 q.put({
                     "type": "progress",
                     "team": team,
@@ -60,6 +60,7 @@ async def calculate(
                     "pct_better": round(pct_better, 2),
                     "record": stats[team]["record"],
                     "scores": stats[team]["scores"],
+                    "distribution": distribution,
                 })
             q.put(None)  # sentinel: calculation finished normally
         except Exception as exc:

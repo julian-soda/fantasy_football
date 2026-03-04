@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import LuckTable, { TeamResult } from '../components/LuckTable'
+import LuckBarChart from '../components/LuckBarChart'
 
 interface ResultData {
   result_id: string
@@ -95,6 +96,19 @@ export default function Results() {
     })
   }
 
+  const leagueAvgByWeek = useMemo(() => {
+    if (!data) return []
+    const allScores = Object.values(data.teams)
+      .map(t => t.scores ?? [])
+      .filter(s => s.length > 0)
+    if (allScores.length === 0) return []
+    const numWeeks = Math.max(...allScores.map(s => s.length))
+    return Array.from({ length: numWeeks }, (_, i) => {
+      const vals = allScores.map(s => s[i]).filter(v => v !== undefined)
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0
+    })
+  }, [data])
+
   if (error) return <p style={styles.error}>{error}</p>
   if (!data) return <p style={styles.loading}>Loading…</p>
 
@@ -117,8 +131,15 @@ export default function Results() {
         </div>
       </div>
 
+      <div style={{ ...styles.card, marginBottom: '1.5rem' }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem', color: '#444' }}>
+          Luck Ranking
+        </h2>
+        <LuckBarChart teams={data.teams} />
+      </div>
+
       <div style={styles.card}>
-        <LuckTable teams={data.teams} />
+        <LuckTable teams={data.teams} leagueAvg={leagueAvgByWeek} />
       </div>
 
       <Link to="/" style={styles.homeLink}>Calculate another league</Link>
