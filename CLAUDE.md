@@ -4,10 +4,33 @@
 Fantasy football luck analyzer. Fetches live data from the Yahoo Fantasy Sports API
 and computes a luck index for each team by simulating every possible schedule permutation.
 
-## Key files
+## Key files (CLI)
 - `ff_luck.py` — CLI entry point and simulation/output logic
 - `yahoo_api.py` — Yahoo API integration (`fetch_stats`)
 - `test_ff_luck.py` — unit, integration, and regression tests
+
+## Webapp
+The project also has a full-stack web app:
+
+**Backend** (`backend/`) — FastAPI, deployed on AWS App Runner
+- `main.py`, `auth.py`, `session.py`, `yahoo_client.py`
+- `routes/leagues.py`, `routes/calculate.py`, `routes/results.py`
+- Docker build context is `fantasy_football/` dir: `docker build -f backend/Dockerfile .`
+- DynamoDB tables: `ff-sessions` (TTL=24h), `ff-results` (public)
+- Env vars: `YAHOO_CONSUMER_KEY`, `YAHOO_CONSUMER_SECRET`, `YAHOO_REDIRECT_URI`, `SESSION_COOKIE_SECRET`, `AWS_DEFAULT_REGION`
+
+**Frontend** (`frontend/`) — React + Vite, deployed on Vercel
+- Components: `LuckTable.tsx`, `LuckBarChart.tsx`, `DistributionChart.tsx`, `WeeklyScoresChart.tsx`
+- Pages: `Results.tsx`, others
+- Hooks: `src/hooks/useIsMobile.ts` (640px breakpoint, uses `window.matchMedia`)
+- Uses inline React styles throughout (no CSS modules or Tailwind)
+- Update `frontend/vercel.json` with the App Runner URL before deploying
+
+**CI/CD**: `.github/workflows/deploy-backend.yml` and `deploy-frontend.yml`
+
+## Known gotchas
+- Yahoo OAuth callback can fire twice (browser double-request). `auth.py` catches the resulting 400 from Yahoo and redirects home — the session from the first request is already valid.
+- Recharts `XAxis`: `angle` and `textAnchor` are top-level props on `<XAxis>`, not inside the `tick` object.
 
 ## Running
 ```
