@@ -9,6 +9,7 @@ import {
   Cell,
   ResponsiveContainer,
 } from 'recharts'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 interface Props {
   distribution: Record<string, number>
@@ -28,6 +29,7 @@ function formatRecord(record: string) {
 }
 
 export default function DistributionChart({ distribution, actualRecord }: Props) {
+  const isMobile = useIsMobile()
   const data = Object.entries(distribution)
     .sort(([a], [b]) => sortRecords(a, b))
     .map(([record, pct]) => ({ record, label: formatRecord(record), pct }))
@@ -36,9 +38,9 @@ export default function DistributionChart({ distribution, actualRecord }: Props)
 
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <BarChart data={data} margin={{ top: 12, right: 16, left: 0, bottom: 4 }}>
+      <BarChart data={data} margin={{ top: 12, right: 16, left: 0, bottom: isMobile ? 32 : 4 }}>
         <CartesianGrid strokeDasharray="3 3" vertical={false} />
-        <XAxis dataKey="label" tick={{ fontSize: 11 }} interval={0} />
+        <XAxis dataKey="label" tick={isMobile ? { fontSize: 11, angle: -45, textAnchor: 'end' } : { fontSize: 11 }} interval={0} />
         <YAxis
           tickFormatter={v => `${v}%`}
           tick={{ fontSize: 11 }}

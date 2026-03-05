@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import DistributionChart from './DistributionChart'
 import WeeklyScoresChart from './WeeklyScoresChart'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 export interface TeamResult {
   luck_index: number
@@ -85,6 +86,7 @@ function luckLabel(index: number) {
 }
 
 export default function LuckTable({ teams, leagueAvg = [] }: Props) {
+  const isMobile = useIsMobile()
   const [sortKey, setSortKey] = useState<SortKey>('luck_index')
   const [sortAsc, setSortAsc] = useState(false)
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null)
@@ -125,15 +127,15 @@ export default function LuckTable({ teams, leagueAvg = [] }: Props) {
             <th style={{ ...styles.th, ...styles.number }} onClick={() => handleSort('luck_index')}>
               Luck Index{arrow('luck_index')}
             </th>
-            <th style={{ ...styles.th, ...styles.number }} onClick={() => handleSort('pct_worse')}
+            <th style={{ ...styles.th, ...styles.number, ...(isMobile ? { display: 'none' } : {}) }} onClick={() => handleSort('pct_worse')}
               title="Sum of % of all schedule combinations where a team would have a worse record than actual">
               % Worse{arrow('pct_worse')}
             </th>
-            <th style={{ ...styles.th, ...styles.number }} onClick={() => handleSort('pct_better')}
+            <th style={{ ...styles.th, ...styles.number, ...(isMobile ? { display: 'none' } : {}) }} onClick={() => handleSort('pct_better')}
               title="Sum of % of all schedule combinations where a team would have a better record than actual">
               % Better{arrow('pct_better')}
             </th>
-            <th style={styles.th}>Assessment</th>
+            <th style={{ ...styles.th, ...(isMobile ? { display: 'none' } : {}) }}>Assessment</th>
           </tr>
         </thead>
         <tbody>
@@ -166,18 +168,18 @@ export default function LuckTable({ teams, leagueAvg = [] }: Props) {
                   }}>
                     {data.luck_index > 0 ? '+' : ''}{data.luck_index.toFixed(2)}
                   </td>
-                  <td style={{ ...styles.td, ...styles.number }}>
+                  <td style={{ ...styles.td, ...styles.number, ...(isMobile ? { display: 'none' } : {}) }}>
                     {data.pct_worse.toFixed(1)}%
                   </td>
-                  <td style={{ ...styles.td, ...styles.number }}>
+                  <td style={{ ...styles.td, ...styles.number, ...(isMobile ? { display: 'none' } : {}) }}>
                     {data.pct_better.toFixed(1)}%
                   </td>
-                  <td style={styles.td}>{luckLabel(data.luck_index)}</td>
+                  <td style={{ ...styles.td, ...(isMobile ? { display: 'none' } : {}) }}>{luckLabel(data.luck_index)}</td>
                 </tr>
                 {isExpanded && (
                   <tr key={`${name}-expand`} style={styles.expandRow}>
                     <td colSpan={colCount} style={styles.expandCell}>
-                      <div style={styles.expandGrid}>
+                      <div style={{ ...styles.expandGrid, gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr' }}>
                         {data.distribution && (
                           <div>
                             <div style={{ ...styles.expandLabel, cursor: 'help' }} title="Shows what percentage of all possible schedule combinations would have resulted in each win-loss record. The highlighted bar is the team's actual record.">Record Distribution</div>

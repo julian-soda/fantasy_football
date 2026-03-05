@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { TeamResult } from './LuckTable'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 interface Props {
   teams: Record<string, TeamResult>
@@ -23,6 +24,7 @@ function luckColor(index: number) {
 }
 
 export default function LuckBarChart({ teams }: Props) {
+  const isMobile = useIsMobile()
   const data = Object.entries(teams)
     .sort(([, a], [, b]) => b.luck_index - a.luck_index)
     .map(([name, d]) => ({ name, luck_index: d.luck_index }))
@@ -44,8 +46,8 @@ export default function LuckBarChart({ teams }: Props) {
         <YAxis
           type="category"
           dataKey="name"
-          width={160}
-          tick={{ fontSize: 13 }}
+          width={isMobile ? 110 : 160}
+          tick={{ fontSize: isMobile ? 11 : 13 }}
         />
         <Tooltip
           formatter={(value: number) => [
