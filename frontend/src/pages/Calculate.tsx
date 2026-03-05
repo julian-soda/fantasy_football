@@ -49,7 +49,16 @@ export default function Calculate() {
     if (!leagueId || !year) { navigate('/dashboard'); return }
     const params = new URLSearchParams({ league_id: leagueId, year })
     if (throughWeek) params.set('through_week', throughWeek)
-    setStreamUrl(`/api/calculate?${params}`)
+    fetch(`/api/results/lookup?${params}`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.result_id) {
+          navigate(`/results/${data.result_id}`, { replace: true })
+        } else {
+          setStreamUrl(`/api/calculate?${params}`)
+        }
+      })
+      .catch(() => setStreamUrl(`/api/calculate?${params}`))
   }, [leagueId, year, throughWeek, navigate])
 
   // Navigate to results page when the stream completes
