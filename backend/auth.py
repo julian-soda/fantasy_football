@@ -11,6 +11,7 @@ from urllib.parse import urlencode
 
 from fastapi import APIRouter, Cookie, Request
 from fastapi.responses import RedirectResponse, Response
+from httpx import HTTPStatusError
 
 from yahoo_client import exchange_code
 from session import set_session, delete_session
@@ -42,7 +43,13 @@ async def callback(code: str, state: str = "", oauth_state: str = Cookie(default
     if state and oauth_state and state != oauth_state:
         return RedirectResponse(url="/")
 
-    tokens = await exchange_code(code)
+    try:
+        tokens = await exchange_code(code)
+    except HTTPStatusError:
+        # Code already consumed (duplicate callback request) — session was set by
+        # the first request, so just redirect home without crashing.
+        return RedirectResponse(url="/")
+
     session_id = secrets.token_urlsafe(32)
     set_session(session_id, tokens)
 
