@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard'
 import Calculate from './pages/Calculate'
 import Results from './pages/Results'
 import About from './pages/About'
+import EspnLogin from './pages/EspnLogin'
 import Nav from './components/Nav'
 
 export default function App() {
@@ -12,6 +13,7 @@ export default function App() {
       <Nav />
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/espn-login" element={<EspnLogin />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/calculate" element={<Calculate />} />
         <Route path="/results/:id" element={<Results />} />

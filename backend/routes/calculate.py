@@ -24,11 +24,12 @@ from fastapi.responses import StreamingResponse
 from routes.leagues import _get_tokens
 from routes.results import find_cached_result, save_result
 
-# Add the app root to sys.path so ff_luck and yahoo_api are importable
+# Add the app root to sys.path so ff_luck, yahoo_api, espn_fetch are importable
 # (__file__ is .../routes/calculate.py → .parent.parent is the app root)
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from ff_luck import simulate_all_teams
-from yahoo_api import fetch_stats
+from yahoo_api import fetch_stats as fetch_stats_yahoo
+from espn_fetch import fetch_stats as fetch_stats_espn
 
 router = APIRouter()
 
@@ -41,7 +42,8 @@ async def calculate(
     tokens: dict = Depends(_get_tokens),
 ):
     """Stream per-team luck results as SSE events."""
-    cached_id = find_cached_result(league_id, year, through_week)
+    provider = tokens.get("provider", "yahoo")
+    cached_id = find_cached_result(provider, league_id, year, through_week)
     if cached_id:
         async def cached_stream():
             yield f"data: {json.dumps({'type': 'complete', 'result_id': cached_id})}\n\n"
@@ -53,11 +55,19 @@ async def calculate(
 
     def run():
         try:
-            stats = fetch_stats(
-                league_id, year,
-                access_token_json=tokens,
-                through_week=through_week,
-            )
+            if provider == "espn":
+                stats = fetch_stats_espn(
+                    league_id, year,
+                    espn_s2=tokens["espn_s2"],
+                    swid=tokens["swid"],
+                    through_week=through_week,
+                )
+            else:
+                stats = fetch_stats_yahoo(
+                    league_id, year,
+                    access_token_json=tokens,
+                    through_week=through_week,
+                )
             for team, luck_index, pct_worse, pct_better, distribution in simulate_all_teams(stats):
                 q.put({
                     "type": "progress",
@@ -90,7 +100,7 @@ async def calculate(
                 return
 
         if results:
-            result_id = save_result(league_id, year, through_week, results)
+            result_id = save_result(provider, league_id, year, through_week, results)
             yield f"data: {json.dumps({'type': 'complete', 'result_id': result_id})}\n\n"
 
     return StreamingResponse(

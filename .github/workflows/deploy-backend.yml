@@ -7,6 +7,7 @@ on:
       - 'backend/**'
       - 'ff_luck.py'
       - 'yahoo_api.py'
+      - 'espn_fetch.py'
 
 jobs:
   deploy:

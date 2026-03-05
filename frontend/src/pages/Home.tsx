@@ -23,10 +23,28 @@ const styles: Record<string, React.CSSProperties> = {
     lineHeight: 1.6,
     marginBottom: '2.5rem',
   },
-  loginBtn: {
+  btnRow: {
+    display: 'flex',
+    gap: '1rem',
+    flexWrap: 'wrap' as const,
+    justifyContent: 'center',
+  },
+  yahooBtn: {
     display: 'inline-block',
     padding: '0.85rem 2rem',
     background: '#6001d2',
+    color: '#fff',
+    borderRadius: '8px',
+    textDecoration: 'none',
+    fontSize: '1rem',
+    fontWeight: 600,
+    border: 'none',
+    cursor: 'pointer',
+  },
+  espnBtn: {
+    display: 'inline-block',
+    padding: '0.85rem 2rem',
+    background: '#e8352a',
     color: '#fff',
     borderRadius: '8px',
     textDecoration: 'none',
@@ -63,12 +81,18 @@ export default function Home() {
         We simulate every possible schedule permutation and show you where you
         actually stand.
       </p>
-      <a href="/auth/login" style={styles.loginBtn}>
-        Login with Yahoo
-      </a>
+      <div style={styles.btnRow}>
+        <a href="/auth/login" style={styles.yahooBtn}>
+          Login with Yahoo
+        </a>
+        <a href="/espn-login" style={styles.espnBtn}>
+          Login with ESPN
+        </a>
+      </div>
       <p style={styles.explainer}>
         We only read your league data — we never write or modify anything.
         Your credentials are never stored in the browser.
+        ESPN login requires copying cookies from your browser.
       </p>
     </div>
   )

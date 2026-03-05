@@ -1,0 +1,191 @@
+name: Deploy Dev (ESPN branch)
+
+on:
+  push:
+    branches: [espn]
+    paths:
+      - 'backend/**'
+      - 'ff_luck.py'
+      - 'yahoo_api.py'
+      - 'espn_fetch.py'
+      - 'frontend/**'
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      dev_url: ${{ steps.get-url.outputs.dev_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Log in to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image (dev tag)
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          REPO: ff-luck-backend
+          SHA: ${{ github.sha }}
+        run: |
+          docker build -f backend/Dockerfile \
+            -t $REGISTRY/$REPO:dev \
+            -t $REGISTRY/$REPO:dev-$SHA \
+            .
+          docker push $REGISTRY/$REPO:dev
+          docker push $REGISTRY/$REPO:dev-$SHA
+
+      - name: Ensure dev DynamoDB tables exist
+        run: |
+          for TABLE in ff-sessions-dev ff-results-dev; do
+            aws dynamodb create-table \
+              --table-name $TABLE \
+              --attribute-definitions AttributeName=result_id,AttributeType=S \
+              --key-schema AttributeName=result_id,KeyType=HASH \
+              --billing-mode PAY_PER_REQUEST \
+              --region us-east-1 \
+              2>/dev/null || true
+          done
+          # Enable TTL on sessions table
+          aws dynamodb update-time-to-live \
+            --table-name ff-sessions-dev \
+            --time-to-live-specification Enabled=true,AttributeName=ttl \
+            --region us-east-1 \
+            2>/dev/null || true
+
+      - name: Create or update dev App Runner service
+        id: deploy-service
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          REPO: ff-luck-backend
+          SERVICE_ARN: ${{ secrets.APP_RUNNER_SERVICE_ARN_DEV }}
+          YAHOO_CONSUMER_KEY: ${{ secrets.YAHOO_CONSUMER_KEY }}
+          YAHOO_CONSUMER_SECRET: ${{ secrets.YAHOO_CONSUMER_SECRET }}
+          YAHOO_REDIRECT_URI_DEV: ${{ secrets.YAHOO_REDIRECT_URI_DEV }}
+          SESSION_COOKIE_SECRET: ${{ secrets.SESSION_COOKIE_SECRET }}
+        run: |
+          IMAGE_URI="$REGISTRY/$REPO:dev"
+
+          # Check if service already exists
+          if [ -n "$SERVICE_ARN" ]; then
+            STATUS=$(aws apprunner describe-service \
+              --service-arn "$SERVICE_ARN" \
+              --query 'Service.Status' --output text 2>/dev/null || echo "DELETED")
+
+            if [ "$STATUS" != "DELETED" ] && [ "$STATUS" != "" ]; then
+              echo "Service exists (status: $STATUS) — triggering redeployment"
+              aws apprunner start-deployment --service-arn "$SERVICE_ARN"
+            else
+              echo "Service ARN set but service not found — will create new service"
+              SERVICE_ARN=""
+            fi
+          fi
+
+          if [ -z "$SERVICE_ARN" ]; then
+            echo "Creating new dev App Runner service..."
+            ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+            SERVICE_ARN=$(aws apprunner create-service \
+              --service-name ff-luck-api-dev \
+              --source-configuration "{
+                \"ImageRepository\": {
+                  \"ImageIdentifier\": \"$IMAGE_URI\",
+                  \"ImageConfiguration\": {
+                    \"Port\": \"8000\",
+                    \"RuntimeEnvironmentVariables\": {
+                      \"YAHOO_CONSUMER_KEY\": \"$YAHOO_CONSUMER_KEY\",
+                      \"YAHOO_CONSUMER_SECRET\": \"$YAHOO_CONSUMER_SECRET\",
+                      \"YAHOO_REDIRECT_URI\": \"$YAHOO_REDIRECT_URI_DEV\",
+                      \"SESSION_COOKIE_SECRET\": \"$SESSION_COOKIE_SECRET\",
+                      \"AWS_DEFAULT_REGION\": \"us-east-1\",
+                      \"SESSIONS_TABLE\": \"ff-sessions-dev\",
+                      \"RESULTS_TABLE\": \"ff-results-dev\"
+                    }
+                  },
+                  \"ImageRepositoryType\": \"ECR\"
+                },
+                \"AutoDeploymentsEnabled\": false
+              }" \
+              --query 'Service.ServiceArn' --output text)
+            echo "Created service: $SERVICE_ARN"
+            echo "ACTION REQUIRED: Store this ARN as secret APP_RUNNER_SERVICE_ARN_DEV:"
+            echo "$SERVICE_ARN"
+          fi
+
+      - name: Get dev App Runner service URL
+        id: get-url
+        env:
+          SERVICE_ARN: ${{ secrets.APP_RUNNER_SERVICE_ARN_DEV }}
+        run: |
+          if [ -n "$SERVICE_ARN" ]; then
+            DEV_URL=$(aws apprunner describe-service \
+              --service-arn "$SERVICE_ARN" \
+              --query 'Service.ServiceUrl' --output text 2>/dev/null || echo "")
+            echo "dev_url=https://$DEV_URL" >> "$GITHUB_OUTPUT"
+          else
+            echo "dev_url=${{ secrets.APP_RUNNER_DEV_URL }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Generate dev vercel config
+        env:
+          DEV_BACKEND_URL: ${{ needs.deploy-backend.outputs.dev_url || secrets.APP_RUNNER_DEV_URL }}
+        run: |
+          cat > frontend/vercel.dev.json << EOF
+          {
+            "rewrites": [
+              {
+                "source": "/api/:path*",
+                "destination": "${DEV_BACKEND_URL}/api/:path*"
+              },
+              {
+                "source": "/auth/:path*",
+                "destination": "${DEV_BACKEND_URL}/auth/:path*"
+              },
+              {
+                "source": "/((?!api|auth).*)",
+                "destination": "/index.html"
+              }
+            ]
+          }
+          EOF
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Deploy Vercel preview
+        working-directory: frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          npm install -g vercel
+          vercel deploy --local-config vercel.dev.json --token "$VERCEL_TOKEN"

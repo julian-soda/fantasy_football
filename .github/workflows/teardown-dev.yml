@@ -1,0 +1,32 @@
+name: Teardown Dev Environment
+
+on:
+  workflow_dispatch:
+
+jobs:
+  teardown:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Delete dev App Runner service
+        env:
+          SERVICE_ARN: ${{ secrets.APP_RUNNER_SERVICE_ARN_DEV }}
+        run: |
+          if [ -z "$SERVICE_ARN" ]; then
+            echo "APP_RUNNER_SERVICE_ARN_DEV secret not set — nothing to delete"
+            exit 0
+          fi
+          echo "Deleting dev App Runner service: $SERVICE_ARN"
+          aws apprunner delete-service --service-arn "$SERVICE_ARN"
+          echo "Done. Vercel preview deployments expire automatically."
+          echo "Dev DynamoDB tables (ff-sessions-dev, ff-results-dev) are retained."
+          echo "To re-create the service, push to the espn branch."

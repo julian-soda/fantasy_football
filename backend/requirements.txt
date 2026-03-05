@@ -4,4 +4,5 @@ httpx
 boto3
 itsdangerous
 yfpy
+espn-api
 python-dotenv

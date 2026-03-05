@@ -1,13 +1,16 @@
-"""GET /api/leagues — list the authenticated user's Yahoo Fantasy NFL leagues."""
+"""GET /api/leagues — list the authenticated user's Fantasy NFL leagues.
+
+Supports Yahoo (OAuth) and ESPN (browser cookies).
+"""
 import httpx
 from fastapi import APIRouter, Cookie, Depends, HTTPException
-from session import get_session
+from session import get_session, refresh_session
 from yahoo_client import is_token_expired, refresh_access_token
-from session import refresh_session
+from espn_client import validate_and_get_leagues
 
 router = APIRouter()
 
-_LEAGUES_URL = (
+_YAHOO_LEAGUES_URL = (
     "https://fantasysports.yahooapis.com/fantasy/v2"
     "/users;use_login=1/games;game_codes=nfl/leagues"
     "?format=json"
@@ -21,8 +24,8 @@ async def _get_tokens(session_id: str = Cookie(default=None)) -> dict:
     if not tokens:
         raise HTTPException(status_code=401, detail="Session expired — please log in again")
 
-    # Proactively refresh if the access token is about to expire
-    if is_token_expired(tokens):
+    # Only refresh OAuth tokens for Yahoo sessions
+    if tokens.get("provider", "yahoo") == "yahoo" and is_token_expired(tokens):
         new_tokens = await refresh_access_token(tokens["refresh_token"])
         refresh_session(session_id, new_tokens)
         tokens = get_session(session_id)
@@ -33,9 +36,20 @@ async def _get_tokens(session_id: str = Cookie(default=None)) -> dict:
 @router.get("/leagues")
 async def list_leagues(tokens: dict = Depends(_get_tokens)):
     """Return a list of the user's NFL Fantasy leagues across all seasons."""
+    provider = tokens.get("provider", "yahoo")
+
+    if provider == "espn":
+        try:
+            leagues = await validate_and_get_leagues(tokens["espn_s2"], tokens["swid"])
+        except httpx.HTTPStatusError:
+            raise HTTPException(status_code=401, detail="ESPN cookies are invalid — please log in again")
+        leagues.sort(key=lambda x: x["year"], reverse=True)
+        return leagues
+
+    # Yahoo
     async with httpx.AsyncClient() as client:
         resp = await client.get(
-            _LEAGUES_URL,
+            _YAHOO_LEAGUES_URL,
             headers={"Authorization": f"Bearer {tokens['access_token']}"},
         )
         if resp.status_code == 401:

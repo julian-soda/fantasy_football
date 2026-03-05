@@ -8,6 +8,10 @@ interface League {
   num_teams: number
 }
 
+interface SessionInfo {
+  provider: 'yahoo' | 'espn'
+}
+
 const styles: Record<string, React.CSSProperties> = {
   container: {
     maxWidth: '560px',
@@ -74,6 +78,15 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#888',
     marginTop: '0.3rem',
   },
+  providerBadge: {
+    display: 'inline-block',
+    fontSize: '0.75rem',
+    fontWeight: 600,
+    padding: '0.15rem 0.55rem',
+    borderRadius: '999px',
+    marginLeft: '0.6rem',
+    verticalAlign: 'middle',
+  },
 }
 
 export default function Dashboard() {
@@ -84,6 +97,7 @@ export default function Dashboard() {
   const [throughWeek, setThroughWeek] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [session, setSession] = useState<SessionInfo | null>(null)
 
   useEffect(() => {
     fetch('/api/leagues', { credentials: 'include' })
@@ -99,6 +113,10 @@ export default function Dashboard() {
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false))
+
+    fetch('/api/session', { credentials: 'include' })
+      .then(async r => { if (r.ok) setSession(await r.json()) })
+      .catch(() => {})
   }, [navigate])
 
   function handleLeagueChange(e: React.ChangeEvent<HTMLSelectElement>) {
@@ -122,7 +140,18 @@ export default function Dashboard() {
   return (
     <div style={styles.container}>
       <button style={styles.logoutBtn} onClick={handleLogout}>Log out</button>
-      <h1 style={styles.title}>FF Luck Calculator</h1>
+      <h1 style={styles.title}>
+        FF Luck Calculator
+        {session && (
+          <span style={{
+            ...styles.providerBadge,
+            background: session.provider === 'espn' ? '#fde8e8' : '#ede8fb',
+            color: session.provider === 'espn' ? '#c0392b' : '#6001d2',
+          }}>
+            {session.provider === 'espn' ? 'ESPN' : 'Yahoo'}
+          </span>
+        )}
+      </h1>
 
       {loading && <p style={{ marginTop: '1rem', color: '#555' }}>Loading leagues…</p>}
 

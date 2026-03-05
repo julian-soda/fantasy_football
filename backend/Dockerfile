@@ -10,7 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ .
 
 # Copy shared CLI modules needed by the backend
-COPY ff_luck.py yahoo_api.py ./
+COPY ff_luck.py yahoo_api.py espn_fetch.py ./
 
 EXPOSE 8000
 
