@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import LuckTable, { TeamResult } from '../components/LuckTable'
 import LuckBarChart from '../components/LuckBarChart'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 interface ResultData {
   result_id: string
@@ -73,6 +74,7 @@ const styles: Record<string, React.CSSProperties> = {
 }
 
 export default function Results() {
+  const isMobile = useIsMobile()
   const { id } = useParams<{ id: string }>()
   const [data, setData] = useState<ResultData | null>(null)
   const [error, setError] = useState('')
@@ -117,7 +119,7 @@ export default function Results() {
   const created = new Date(data.created_at).toLocaleDateString()
 
   return (
-    <div style={styles.container}>
+    <div style={{ ...styles.container, padding: isMobile ? '0.75rem' : '2rem', margin: isMobile ? '1rem auto' : '3rem auto' }}>
       <div style={styles.header}>
         <h1 style={styles.title}>Luck Index Results</h1>
         <p style={styles.meta}>{metaParts.join(', ')} · Calculated {created}</p>
