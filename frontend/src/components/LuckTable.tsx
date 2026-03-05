@@ -37,6 +37,9 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '0.55rem 0.8rem',
     borderBottom: '1px solid #eee',
   },
+  noWrap: {
+    whiteSpace: 'nowrap' as const,
+  },
   number: {
     textAlign: 'right' as const,
     fontVariantNumeric: 'tabular-nums',
@@ -122,10 +125,12 @@ export default function LuckTable({ teams, leagueAvg = [] }: Props) {
             <th style={{ ...styles.th, ...styles.number }} onClick={() => handleSort('luck_index')}>
               Luck Index{arrow('luck_index')}
             </th>
-            <th style={{ ...styles.th, ...styles.number }} onClick={() => handleSort('pct_worse')}>
+            <th style={{ ...styles.th, ...styles.number }} onClick={() => handleSort('pct_worse')}
+              title="Sum of % of all schedule combinations where a team would have a worse record than actual">
               % Worse{arrow('pct_worse')}
             </th>
-            <th style={{ ...styles.th, ...styles.number }} onClick={() => handleSort('pct_better')}>
+            <th style={{ ...styles.th, ...styles.number }} onClick={() => handleSort('pct_better')}
+              title="Sum of % of all schedule combinations where a team would have a better record than actual">
               % Better{arrow('pct_better')}
             </th>
             <th style={styles.th}>Assessment</th>
@@ -146,7 +151,7 @@ export default function LuckTable({ teams, leagueAvg = [] }: Props) {
                   onClick={() => setExpandedTeam(isExpanded ? null : name)}
                 >
                   <td style={styles.td}>{i + 1}</td>
-                  <td style={styles.td}>
+                  <td style={{ ...styles.td, ...styles.noWrap }}>
                     <span style={{ marginRight: '0.4rem', fontSize: '0.75rem', color: '#999' }}>
                       {isExpanded ? '▾' : '▸'}
                     </span>
