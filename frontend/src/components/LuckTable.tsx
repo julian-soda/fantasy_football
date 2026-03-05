@@ -180,7 +180,7 @@ export default function LuckTable({ teams, leagueAvg = [] }: Props) {
                       <div style={styles.expandGrid}>
                         {data.distribution && (
                           <div>
-                            <div style={styles.expandLabel}>Record Distribution</div>
+                            <div style={{ ...styles.expandLabel, cursor: 'help' }} title="Shows what percentage of all possible schedule combinations would have resulted in each win-loss record. The highlighted bar is the team's actual record.">Record Distribution</div>
                             <DistributionChart
                               distribution={data.distribution}
                               actualRecord={data.record}

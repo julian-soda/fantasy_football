@@ -29,6 +29,17 @@ def _table():
     return _dynamodb.Table(_TABLE_NAME)
 
 
+def _lookup_key(league_id: str, year: int, through_week: int | None) -> str:
+    return f"idx#{league_id}#{year}#{through_week or 'full'}"
+
+
+def find_cached_result(league_id: str, year: int, through_week: int | None) -> str | None:
+    """Return the result_id for a previously computed result, or None."""
+    resp = _table().get_item(Key={"result_id": _lookup_key(league_id, year, through_week)})
+    item = resp.get("Item")
+    return item["target_id"] if item else None
+
+
 def save_result(league_id: str, year: int, through_week: int | None, team_events: list) -> str:
     """Persist calculation results and return the new result_id."""
     result_id = str(uuid4())
@@ -54,10 +65,23 @@ def save_result(league_id: str, year: int, through_week: int | None, team_events
         item["through_week"] = through_week
 
     _table().put_item(Item=item)
+    _table().put_item(Item={
+        "result_id": _lookup_key(league_id, year, through_week),
+        "target_id": result_id,
+    })
     return result_id
 
 
 router = APIRouter()
+
+
+@router.get("/results/lookup")
+def lookup_result(league_id: str, year: int, through_week: int | None = None):
+    """Check if a cached result exists for this league/year/through_week combo."""
+    result_id = find_cached_result(league_id, year, through_week)
+    if not result_id:
+        raise HTTPException(status_code=404, detail="No cached result found")
+    return {"result_id": result_id}
 
 
 @router.get("/results/{result_id}")

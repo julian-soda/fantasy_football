@@ -22,7 +22,7 @@ from fastapi.responses import StreamingResponse
 
 # Shared auth helper — imported from leagues to avoid duplication
 from routes.leagues import _get_tokens
-from routes.results import save_result
+from routes.results import find_cached_result, save_result
 
 # Add the app root to sys.path so ff_luck and yahoo_api are importable
 # (__file__ is .../routes/calculate.py → .parent.parent is the app root)
@@ -41,6 +41,13 @@ async def calculate(
     tokens: dict = Depends(_get_tokens),
 ):
     """Stream per-team luck results as SSE events."""
+    cached_id = find_cached_result(league_id, year, through_week)
+    if cached_id:
+        async def cached_stream():
+            yield f"data: {json.dumps({'type': 'complete', 'result_id': cached_id})}\n\n"
+        return StreamingResponse(cached_stream(), media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
     loop = asyncio.get_event_loop()
     q: queue.Queue = queue.Queue()
 

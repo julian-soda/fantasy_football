@@ -21,24 +21,32 @@ function sortRecords(a: string, b: string) {
   return winsA - winsB
 }
 
+function formatRecord(record: string) {
+  const parts = record.split('-')
+  if (parts.length === 3 && parts[2] === '0') return `${parts[0]}-${parts[1]}`
+  return record
+}
+
 export default function DistributionChart({ distribution, actualRecord }: Props) {
   const data = Object.entries(distribution)
     .sort(([a], [b]) => sortRecords(a, b))
-    .map(([record, pct]) => ({ record, pct }))
+    .map(([record, pct]) => ({ record, label: formatRecord(record), pct }))
+
+  const formattedActual = formatRecord(actualRecord)
 
   return (
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={data} margin={{ top: 12, right: 16, left: 0, bottom: 4 }}>
         <CartesianGrid strokeDasharray="3 3" vertical={false} />
-        <XAxis dataKey="record" tick={{ fontSize: 11 }} />
+        <XAxis dataKey="label" tick={{ fontSize: 11 }} interval={0} />
         <YAxis
           tickFormatter={v => `${v}%`}
           tick={{ fontSize: 11 }}
           domain={[0, 'auto']}
         />
-        <Tooltip formatter={(v: number) => [`${v.toFixed(1)}%`, 'Schedules']} />
+        <Tooltip formatter={(v: number) => [`${v.toFixed(1)}%`, 'Schedules']} labelFormatter={l => `Record: ${l}`} />
         <ReferenceLine
-          x={actualRecord}
+          x={formattedActual}
           stroke="#d97706"
           strokeWidth={2}
           label={{ value: 'actual', position: 'insideTopRight', fontSize: 11, fill: '#d97706' }}
@@ -47,8 +55,8 @@ export default function DistributionChart({ distribution, actualRecord }: Props)
           {data.map(entry => (
             <Cell
               key={entry.record}
-              fill={entry.record === actualRecord ? '#d97706' : '#6366f1'}
-              fillOpacity={entry.record === actualRecord ? 1 : 0.65}
+              fill={entry.label === formattedActual ? '#d97706' : '#6366f1'}
+              fillOpacity={entry.label === formattedActual ? 1 : 0.65}
             />
           ))}
         </Bar>
