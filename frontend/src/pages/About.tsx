@@ -27,7 +27,7 @@ export default function About() {
 
       <p style={styles.p}>
         Fantasy football standings depend not just on how many points your team scores, but on
-        <em> who you happen to face each week</em>. A team that scores 130 points in a week where
+        <em> whom you happen to face each week</em>. A team that scores 130 points in a week where
         the league average is 110 might still lose if their one opponent scores 140. The FF Luck
         Calculator answers the question: <strong>how much did your schedule luck affect your record?</strong>
       </p>
