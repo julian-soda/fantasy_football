@@ -38,7 +38,7 @@ export default function LuckBarChart({ teams }: Props) {
         <XAxis
           type="number"
           tickFormatter={v => (v > 0 ? `+${v}` : `${v}`)}
-          domain={['auto', 'auto']}
+          domain={[-100, 100]}
           tick={{ fontSize: 12 }}
         />
         <YAxis

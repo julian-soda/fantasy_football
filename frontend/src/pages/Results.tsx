@@ -123,7 +123,7 @@ export default function Results() {
         <p style={styles.meta}>{metaParts.join(', ')} · Calculated {created}</p>
 
         <div style={styles.shareBox}>
-          <span style={styles.meta} >Shareable link:</span>
+          <span style={{ ...styles.meta, marginBottom: 0 }}>Shareable link:</span>
           <span style={styles.shareUrl}>{window.location.href}</span>
           <button style={styles.copyBtn} onClick={copyLink}>
             {copied ? 'Copied!' : 'Copy'}
