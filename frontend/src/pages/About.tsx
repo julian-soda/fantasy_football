@@ -61,6 +61,16 @@ export default function About() {
         better.
       </p>
 
+      <h2 style={styles.h2}>Why only Yahoo?</h2>
+      <p style={styles.p}>
+        ESPN Fantasy does not offer a public API or OAuth login for third-party apps.
+        The only way to access private ESPN league data programmatically is by extracting
+        session cookies directly from your browser — a cumbersome process that requires
+        manual steps every time your session expires. Rather than ship a poor experience,
+        we've limited support to Yahoo Fantasy Sports, which provides a proper OAuth flow
+        and official API access.
+      </p>
+
       <h2 style={styles.h2}>Assessments</h2>
       <p style={styles.p}>
         The table uses the absolute value of the index to classify luck:
