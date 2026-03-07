@@ -69,6 +69,7 @@ jobs:
           REGISTRY: ${{ steps.ecr-login.outputs.registry }}
           REPO: ff-luck-backend
           SERVICE_ARN: ${{ secrets.APP_RUNNER_SERVICE_ARN_DEV }}
+          ECR_ROLE_ARN: ${{ secrets.APP_RUNNER_ECR_ROLE_ARN }}
           YAHOO_CONSUMER_KEY: ${{ secrets.YAHOO_CONSUMER_KEY }}
           YAHOO_CONSUMER_SECRET: ${{ secrets.YAHOO_CONSUMER_SECRET }}
           YAHOO_REDIRECT_URI_DEV: ${{ secrets.YAHOO_REDIRECT_URI_DEV }}
@@ -111,7 +112,10 @@ jobs:
                       \"RESULTS_TABLE\": \"ff-results-dev\"
                     }
                   },
-                  \"ImageRepositoryType\": \"ECR\"
+                  \"ImageRepositoryType\": \"ECR\",
+                  \"AuthenticationConfiguration\": {
+                    \"AccessRoleArn\": \"$ECR_ROLE_ARN\"
+                  }
                 },
                 \"AutoDeploymentsEnabled\": false
               }" \
