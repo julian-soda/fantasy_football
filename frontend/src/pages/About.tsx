@@ -44,7 +44,10 @@ export default function About() {
         After running the simulation, the Luck Index is computed as:
       </p>
       <div style={styles.formula}>
-        Luck Index = (% of schedules where you'd have done <em>worse</em>) − (% where you'd have done <em>better</em>)
+        <div>Luck Index =</div>
+        <div style={{ marginTop: '0.4rem' }}>Sum of % of all schedule combinations where a team would have a worse record than actual</div>
+        <div style={{ marginTop: '0.4rem' }}>−</div>
+        <div style={{ marginTop: '0.4rem' }}>Sum of % of all schedule combinations where a team would have a better record than actual</div>
       </div>
 
       <p style={styles.p}>
@@ -75,7 +78,7 @@ export default function About() {
       <p style={styles.p}>
         The table uses the absolute value of the index to classify luck:
       </p>
-      <ul>
+      <ul style={{ paddingLeft: '1.2rem' }}>
         <li>0–10: Average</li>
         <li>10–25: Somewhat lucky / unlucky</li>
         <li>25–50: Pretty lucky / unlucky</li>
