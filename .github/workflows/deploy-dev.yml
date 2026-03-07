@@ -107,10 +107,10 @@ jobs:
                       \"RESULTS_TABLE\": \"ff-results-dev\"
                     }
                   },
-                  \"ImageRepositoryType\": \"ECR\",
-                  \"AuthenticationConfiguration\": {
-                    \"AccessRoleArn\": \"$ECR_ROLE_ARN\"
-                  }
+                  \"ImageRepositoryType\": \"ECR\"
+                },
+                \"AuthenticationConfiguration\": {
+                  \"AccessRoleArn\": \"$ECR_ROLE_ARN\"
                 },
                 \"AutoDeploymentsEnabled\": false
               }" \
