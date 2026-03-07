@@ -3,12 +3,6 @@ name: Deploy Dev (ESPN branch)
 on:
   push:
     branches: [espn]
-    paths:
-      - 'backend/**'
-      - 'ff_luck.py'
-      - 'yahoo_api.py'
-      - 'espn_fetch.py'
-      - 'frontend/**'
 
 jobs:
   deploy-backend:
