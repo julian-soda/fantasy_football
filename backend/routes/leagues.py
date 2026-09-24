@@ -53,7 +53,7 @@ async def list_leagues(tokens: dict = Depends(_get_tokens)):
         if resp.status_code == 401:
             raise HTTPException(status_code=401, detail="Yahoo token rejected — please log in again")
         if not resp.is_success:
-            raise HTTPException(status_code=502, detail="Yahoo Fantasy API unavailable")
+            raise HTTPException(status_code=502, detail=f"Yahoo API error {resp.status_code}: {resp.text[:500]}")
 
         game_keys = []
         try:
