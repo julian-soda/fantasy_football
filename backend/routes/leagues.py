@@ -12,7 +12,7 @@ router = APIRouter()
 # that combined form returns 403 with current Yahoo API restrictions).
 _USER_GAMES_URL = (
     "https://fantasysports.yahooapis.com/fantasy/v2"
-    "/users;use_login=1/games;game_codes=nfl"
+    "/users;use_login=1/games;codes=nfl"
     "?format=json"
 )
 
