@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 const styles: Record<string, React.CSSProperties> = {
@@ -46,18 +46,12 @@ const styles: Record<string, React.CSSProperties> = {
 
 export default function Home() {
   const navigate = useNavigate()
-  const [apiError, setApiError] = useState<string | null>(null)
 
   // If the user lands here with a session cookie already set (e.g. after OAuth
   // callback redirect), send them straight to the dashboard.
   useEffect(() => {
     fetch('/api/leagues', { credentials: 'include' })
-      .then(async r => {
-        if (r.ok) { navigate('/dashboard'); return }
-        if (r.status === 401) return
-        const body = await r.json().catch(() => ({}))
-        setApiError(body.detail ?? `Unexpected error (${r.status})`)
-      })
+      .then(r => { if (r.ok) navigate('/dashboard') })
       .catch(() => {})
   }, [navigate])
 
@@ -69,11 +63,6 @@ export default function Home() {
         We simulate every possible schedule permutation and show you where you
         actually stand.
       </p>
-      {apiError && (
-        <p style={{ color: '#c00', marginBottom: '1rem', maxWidth: '480px', fontSize: '0.9rem' }}>
-          {apiError}
-        </p>
-      )}
       <a href="/auth/login" style={styles.loginBtn}>
         Login with Yahoo
       </a>
