@@ -127,6 +127,11 @@ def _do_fetch(league_id, year, env_dir=None, token_json=None,
                 seen_matchups.add(dedup_key)
 
                 team_a, team_b = matchup.teams[0], matchup.teams[1]
+                # Skip unplayed matchups — future weeks have 0-0 scores which
+                # would be miscounted as ties. A genuine 0-0 fantasy result is
+                # not possible.
+                if not (team_a.points or team_b.points):
+                    continue
                 name_a = team_id_to_name.get(team_a.team_id, team_name(team_a))
                 name_b = team_id_to_name.get(team_b.team_id, team_name(team_b))
                 stats[name_a]['scores_by_week'][week_num] = team_a.points
