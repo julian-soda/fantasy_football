@@ -3,5 +3,5 @@ uvicorn[standard]
 httpx
 boto3
 itsdangerous
-yfpy
+yfpy==15.0.3
 python-dotenv
