@@ -102,49 +102,62 @@ def _do_fetch(league_id, year, env_dir=None, token_json=None,
             for team in teams
         }
 
-        # Fetch matchups via the team endpoint, which works for both current and
-        # archived seasons (unlike get_league_scoreboard_by_week, which fails for
-        # completed seasons). Each team's matchup list covers their full season;
-        # we filter to regular season weeks and deduplicate so each matchup is
-        # only processed once.
-        seen_matchups = set()  # (week, team_key_a, team_key_b) tuples
+        # Pass 1: collect raw matchup data without scoring yet.
+        # We defer win/loss/tie counting until we know which weeks are fully
+        # complete across all teams — a partially-played week (some matchups
+        # scored, others still 0-0) would otherwise produce inconsistent score
+        # list lengths and cause an index error in the simulation.
+        raw_matchups = []  # (week_num, name_a, score_a, name_b, score_b)
+        seen_matchups = set()
         if debug:
             print(f"Fetching data for {len(teams)} teams, {num_regular_season_weeks} regular season weeks...")
         for team in teams:
-            name = team_name(team)
-            team_key = f"{league_key}.t.{team.team_id}"
             if debug:
-                print(f"  Fetching matchups for {name}...", flush=True)
+                print(f"  Fetching matchups for {team_name(team)}...", flush=True)
             for matchup in query.get_team_matchups(team.team_id):
                 week_num = int(matchup.week)
                 if int(matchup.is_playoffs) or week_num > num_regular_season_weeks:
                     continue
-                # Deduplicate: sort the two team keys so (A,B) and (B,A) map to the same key
                 keys = tuple(sorted(t.team_key for t in matchup.teams))
                 dedup_key = (week_num,) + keys
                 if dedup_key in seen_matchups:
                     continue
                 seen_matchups.add(dedup_key)
-
                 team_a, team_b = matchup.teams[0], matchup.teams[1]
-                # Skip unplayed matchups — future weeks have 0-0 scores which
-                # would be miscounted as ties. A genuine 0-0 fantasy result is
-                # not possible.
-                if not (team_a.points or team_b.points):
-                    continue
                 name_a = team_id_to_name.get(team_a.team_id, team_name(team_a))
                 name_b = team_id_to_name.get(team_b.team_id, team_name(team_b))
-                stats[name_a]['scores_by_week'][week_num] = team_a.points
-                stats[name_b]['scores_by_week'][week_num] = team_b.points
-                if team_a.points > team_b.points:
-                    stats[name_a]['wins'] += 1
-                    stats[name_b]['losses'] += 1
-                elif team_b.points > team_a.points:
-                    stats[name_b]['wins'] += 1
-                    stats[name_a]['losses'] += 1
-                else:
-                    stats[name_a]['ties'] += 1
-                    stats[name_b]['ties'] += 1
+                raw_matchups.append((week_num, name_a, team_a.points or 0, name_b, team_b.points or 0))
+
+        # Pass 2: determine which weeks are fully complete.
+        # A week is complete only if every team has a non-zero score that week.
+        # This filters out future weeks (0-0) and partially-played weeks where
+        # only some Thursday/Saturday games have been scored.
+        week_scores: dict[int, dict[str, float]] = {}
+        for week_num, name_a, score_a, name_b, score_b in raw_matchups:
+            week_scores.setdefault(week_num, {})[name_a] = score_a
+            week_scores.setdefault(week_num, {})[name_b] = score_b
+
+        all_names = set(stats.keys())
+        valid_weeks = {
+            w for w, scores in week_scores.items()
+            if scores.keys() >= all_names and all(v > 0 for v in scores.values())
+        }
+
+        # Pass 3: build records and scores from valid weeks only.
+        for week_num, name_a, score_a, name_b, score_b in raw_matchups:
+            if week_num not in valid_weeks:
+                continue
+            stats[name_a]['scores_by_week'][week_num] = score_a
+            stats[name_b]['scores_by_week'][week_num] = score_b
+            if score_a > score_b:
+                stats[name_a]['wins'] += 1
+                stats[name_b]['losses'] += 1
+            elif score_b > score_a:
+                stats[name_b]['wins'] += 1
+                stats[name_a]['losses'] += 1
+            else:
+                stats[name_a]['ties'] += 1
+                stats[name_b]['ties'] += 1
 
         # Convert scores_by_week dicts to week-ordered lists
         for name in stats:
